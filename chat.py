@@ -1,5 +1,7 @@
 """Ollama wrapper: holds the conversation state and talks to the model"""
+import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
 import httpx
 import ollama
@@ -33,7 +35,19 @@ class Chat:
         self.reset()
 
     def reset(self):
+        """Start a new, empty chat"""
+        now = datetime.now().astimezone()
+        self.id = now.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4]
+        self.created = now.isoformat(timespec="seconds")
         self.history = [{"role": "system", "content": self.system_prompt}]
+
+    def load(self, data):
+        """Continue a saved chat"""
+        self.reset()
+        self.id = data["id"]
+        self.created = data.get("created", self.created)
+        self.model = data.get("model") or self.model
+        self.history += data["messages"]
 
     def _window(self):
         """Messages sent to the model: system prompt + last MAX_TURNS exchanges + new user message"""
