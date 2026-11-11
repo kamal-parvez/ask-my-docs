@@ -35,13 +35,13 @@ class Chat:
     def reset(self):
         self.history = [{"role": "system", "content": self.system_prompt}]
 
-    def _trim(self):
-        """Keep the system prompt plus the last MAX_TURNS exchanges and the new user message"""
+    def _window(self):
+        """Messages sent to the model: system prompt + last MAX_TURNS exchanges + new user message"""
         system, rest = self.history[:1], self.history[1:]
         limit = config.MAX_TURNS * 2 + 1  # N full exchanges + the message just added
         while len(rest) > limit:
-            rest = rest[2:]
-        self.history = system + rest
+            rest = rest[2:]  # drop whole user/assistant pairs
+        return system + rest
 
     def list_models(self):
         try:
@@ -67,14 +67,13 @@ class Chat:
     def send(self, user_input):
         """Add a user message, yield reply chunks and record the full reply"""
         self.history.append({"role": "user", "content": user_input})
-        self._trim()
         reply = ""
         try:
             # Stream the response, the caller prints each chunk as it arrives
             # think = False disables reasoning mode for faster replies
             stream = self.client.chat(
                 model=self.model,
-                messages=self.history,
+                messages=self._window(),
                 stream=True,
                 think=config.THINK,
                 options={"temperature": config.TEMPERATURE},
