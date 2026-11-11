@@ -36,8 +36,12 @@ class Chat:
         self.history = [{"role": "system", "content": self.system_prompt}]
 
     def _trim(self):
-        """Keep the system prompt plus the last MAX_TURNS exchanges."""
-        self.history = self.history[:1] + self.history[1:][-config.MAX_TURNS * 2:]
+        """Keep the system prompt plus the last MAX_TURNS exchanges and the new user message"""
+        system, rest = self.history[:1], self.history[1:]
+        limit = config.MAX_TURNS * 2 + 1  # N full exchanges + the message just added
+        while len(rest) > limit:
+            rest = rest[2:]
+        self.history = system + rest
 
     def list_models(self):
         try:
