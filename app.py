@@ -5,7 +5,7 @@ import streamlit as st
 import storage
 from chat import Chat, ModelNotFound, OllamaUnavailable
 
-st.set_page_config(page_title="AI Chatbot", page_icon="💬")
+st.set_page_config(page_title="AI Chatbot", page_icon="💬", layout="wide")
 st.title("💬 AI Chatbot")
 
 # One Chat (history + model) per browser session
@@ -36,7 +36,6 @@ def open_chat(chat_id):
     except storage.ChatNotFound:
         st.session_state.chat_error = "Couldn't read that chat."
         return
-    st.session_state.model_select = chat.model  # keep the model picker in sync
     st.session_state.pending_delete = None
 
 
@@ -55,27 +54,8 @@ def confirm_delete(chat_id):
     st.session_state.pending_delete = None
 
 
-# Sidebar: model picker, new chat, saved chats
+# Sidebar: new chat, saved chats
 with st.sidebar:
-    st.header("Settings")
-    try:
-        names = [m.name for m in chat.list_models()]
-    except OllamaUnavailable:
-        names = []
-        st.error(NOT_RUNNING)
-    if names:
-        if chat.model not in names:
-            names.insert(0, chat.model)
-        st.selectbox(
-            "Model",
-            names,
-            index=names.index(chat.model),
-            key="model_select",
-            on_change=on_model_change,
-        )
-    if err := st.session_state.pop("model_error", None):
-        st.error(err)
-
     st.button("➕ New chat", on_click=new_chat, use_container_width=True)
 
     st.header("Chats")
@@ -94,7 +74,8 @@ with st.sidebar:
             type="primary" if c.id == chat.id else "secondary",  # highlight the current chat
             use_container_width=True,
         )
-        delete_col.button("🗑", key=f"del-{c.id}", on_click=ask_delete, args=(c.id,))
+        delete_col.button("", icon=":material/delete:", key=f"del-{c.id}", help="Delete chat",
+                          on_click=ask_delete, args=(c.id,))
         if st.session_state.get("pending_delete") == c.id:
             st.warning(f"Delete “{c.title}” permanently?")
             yes_col, no_col = st.columns(2)
@@ -106,8 +87,32 @@ for msg in chat.history[1:]:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
+# Chat box with a small model picker underneath
+with st.bottom:
+    prompt = st.chat_input("Message the bot...")
+    try:
+        names = [m.name for m in chat.list_models()]
+    except OllamaUnavailable:
+        names = []
+    if names:
+        if chat.model not in names:
+            names.insert(0, chat.model)
+        st.session_state.model_select = chat.model  # the chat's model is the source of truth
+        _, picker_col = st.columns([4, 1])  # empty left side pushes the picker to the right
+        picker_col.selectbox(
+            "Model",
+            names,
+            key="model_select",
+            on_change=on_model_change,
+            label_visibility="collapsed",
+        )
+    else:
+        st.caption(f"⚠️ {NOT_RUNNING}")
+    if err := st.session_state.pop("model_error", None):
+        st.error(err)
+
 # New message
-if prompt := st.chat_input("Message the bot..."):
+if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
