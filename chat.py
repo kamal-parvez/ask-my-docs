@@ -66,6 +66,7 @@ class Chat:
             ModelInfo(m.model, (m.size or 0) / 1e9)
             for m in models
             if m.model  # skip entries without a name
+            and not m.model.startswith(config.EMBED_MODEL)  # embedding models can't chat
         ]
 
     def set_model(self, name):

@@ -1,5 +1,7 @@
 chatbot.plan
 conversations/
+documents/
+knowledge/
 
 # Python
 .venv/
