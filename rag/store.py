@@ -1,16 +1,26 @@
-"""The Weaviate vector store: connect, replace/list/delete documents' chunks"""
+"""The Weaviate vector store: connect, replace/list/delete documents' chunks, vector search"""
 from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import cast
 
 import weaviate
 from weaviate.classes.aggregate import GroupByAggregate
 from weaviate.classes.config import Configure, DataType, Property, Tokenization, VectorDistances
 from weaviate.classes.data import DataObject
-from weaviate.classes.query import Filter
+from weaviate.classes.query import Filter, MetadataQuery
 from weaviate.exceptions import WeaviateConnectionError
 
 import config
+from .chunking import Chunk
 
 COLLECTION = "Chunk"
+
+
+@dataclass
+class Hit:
+    """A search result: a chunk and its cosine similarity to the query (higher is closer)."""
+    chunk: Chunk
+    score: float
 
 
 class VectorStoreUnavailable(Exception):
@@ -70,3 +80,23 @@ def delete_chunks(name):
     """Remove all stored chunks of a document."""
     with _store() as collection:
         collection.data.delete_many(where=Filter.by_property("source").equal(name))
+
+
+def search(vector, k):
+    """The k chunks closest to a query vector, best first (no relevance cutoff here)."""
+    with _store() as collection:
+        response = collection.query.near_vector(
+            near_vector=vector.tolist(), limit=k, return_metadata=MetadataQuery(distance=True)
+        )
+        return [
+            Hit(
+                Chunk(
+                    text=cast(str, o.properties["text"]),
+                    source=cast(str, o.properties["source"]),
+                    page=cast("int | None", o.properties["page"]),
+                    page_end=cast("int | None", o.properties["page_end"]),
+                ),
+                1 - cast(float, o.metadata.distance),  # cosine distance
+            )
+            for o in response.objects
+        ]

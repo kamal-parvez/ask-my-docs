@@ -1,9 +1,10 @@
-"""RAG: ingest documents into a vector store (and, later, retrieve from it)
+"""RAG: ingest documents into a vector store and retrieve from it
 
 documents.py  - read files and clean them
 chunking.py   - split text into overlapping chunks
 embeddings.py - text to vectors (Ollama)
-store.py      - Weaviate storage
+store.py      - Weaviate storage and vector search
+retrieval.py  - find the chunks relevant to a question
 """
 import shutil
 from pathlib import Path
@@ -14,7 +15,8 @@ import config
 from .chunking import Chunk, chunk_file, split_text
 from .documents import SUPPORTED_TYPES, DocumentError
 from .embeddings import EmbeddingModelMissing, embed_documents, embed_query
-from .store import VectorStoreUnavailable, list_documents, replace_document, delete_chunks
+from .retrieval import retrieve
+from .store import Hit, VectorStoreUnavailable, delete_chunks, list_documents, replace_document
 
 EMBED_BATCH = 32  # chunks embedded per Ollama call
 
