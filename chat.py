@@ -27,10 +27,13 @@ class ModelInfo:
 class Chat:
     """One conversation: message history, current model, and streamed replies."""
 
-    def __init__(self, model=config.MODEL, system_prompt=config.SYSTEM_PROMPT):
+    def __init__(self, model=config.MODEL, system_prompt=config.SYSTEM_PROMPT, retriever=None):
         self.client = ollama.Client(host=config.HOST)
         self.model = model
         self.system_prompt = system_prompt
+        self.retriever = retriever
+        self.last_sources = []  # documents used for the latest reply
+        self.rag_warning = None  # why documents weren't used for the latest reply
         self.history = []
         self.reset()
 
@@ -82,16 +85,23 @@ class Chat:
     def send(self, user_input):
         """Add a user message, yield reply chunks and record the full reply"""
         self.history.append({"role": "user", "content": user_input})
+        self.last_sources, self.rag_warning = [], None
         reply = ""
         try:
+            messages = self._window()
+            if self.retriever:
+                found = self.retriever(user_input)
+                self.last_sources, self.rag_warning = found.sources, found.warning
+                # Context goes into this request only; the saved history keeps the plain question
+                messages[-1] = {"role": "user", "content": found.prompt}
             # Stream the response, the caller prints each chunk as it arrives
             # think = False disables reasoning mode for faster replies
             stream = self.client.chat(
                 model=self.model,
-                messages=self._window(),
+                messages=messages,
                 stream=True,
                 think=config.THINK,
-                options={"temperature": config.TEMPERATURE},
+                options={"temperature": config.TEMPERATURE, "num_ctx": config.NUM_CTX},
             )
             for chunk in stream:
                 piece = chunk["message"]["content"]

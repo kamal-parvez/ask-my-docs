@@ -14,6 +14,8 @@ SYSTEM_PROMPT = os.getenv(
 )
 TEMPERATURE = float(os.getenv("CHATBOT_TEMPERATURE", "0.7"))
 MAX_TURNS = int(os.getenv("CHATBOT_MAX_TURNS", "10"))  # last N user/assistant exchanges kept
+# Context window in tokens. Ollama's default may be as low as 4096, too small once retrieved chunks are added
+NUM_CTX = int(os.getenv("CHATBOT_NUM_CTX", "8192"))
 THINK = os.getenv("CHATBOT_THINK", "false").lower() in {"1", "true", "yes"}
 
 EMBED_MODEL = os.getenv("CHATBOT_EMBED_MODEL", "nomic-embed-text")  # used by RAG to embed text
