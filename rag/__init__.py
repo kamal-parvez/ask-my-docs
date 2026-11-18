@@ -1,0 +1,48 @@
+"""RAG: ingest documents into a vector store (and, later, retrieve from it)
+
+documents.py  - read files and clean them
+chunking.py   - split text into overlapping chunks
+embeddings.py - text to vectors (Ollama)
+store.py      - Weaviate storage
+"""
+import shutil
+from pathlib import Path
+
+import numpy as np
+
+import config
+from .chunking import Chunk, chunk_file, split_text
+from .documents import SUPPORTED_TYPES, DocumentError
+from .embeddings import EmbeddingModelMissing, embed_documents, embed_query
+from .store import VectorStoreUnavailable, list_documents, replace_document, delete_chunks
+
+EMBED_BATCH = 32  # chunks embedded per Ollama call
+
+
+def ingest(path):
+    """Copy a file into documents/, split and embed it, and store it.
+    Re-ingesting a file replaces its old chunks. Returns the number of chunks stored.
+    """
+    path = Path(path)
+    if not path.is_file():
+        raise DocumentError(f"File not found: {path}")
+    chunks = chunk_file(path)  # validates the file before anything is copied or stored
+    vectors = np.vstack([
+        embed_documents([c.text for c in chunks[i:i + EMBED_BATCH]])
+        for i in range(0, len(chunks), EMBED_BATCH)
+    ])
+
+    docs_dir = config.DOCUMENTS_DIR
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    target = docs_dir / path.name
+    if not (target.exists() and target.samefile(path)):  # skip if it's already there
+        shutil.copyfile(path, target)
+
+    replace_document(path.name, chunks, vectors)
+    return len(chunks)
+
+
+def delete_document(name):
+    """Remove a document's chunks from the store, and its copy in documents/."""
+    delete_chunks(name)
+    (config.DOCUMENTS_DIR / name).unlink(missing_ok=True)

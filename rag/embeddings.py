@@ -1,4 +1,4 @@
-"""RAG building blocks: embeddings"""
+"""Turning text into vectors with the Ollama embedding model"""
 import httpx
 import numpy as np
 import ollama

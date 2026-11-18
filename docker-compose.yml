@@ -1,0 +1,16 @@
+# Vector store for RAG. Start with: docker compose up -d
+services:
+  weaviate:
+    image: cr.weaviate.io/semitechnologies/weaviate:1.40.5
+    ports:
+      - "8080:8080"    # REST/GraphQL
+      - "50051:50051"  # gRPC (used by the Python client)
+    environment:
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      DEFAULT_VECTORIZER_MODULE: "none"  # will supply our own Ollama vectors
+      ENABLE_MODULES: ""
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      CLUSTER_HOSTNAME: node1
+    volumes:
+      - ./knowledge:/var/lib/weaviate
+    restart: unless-stopped

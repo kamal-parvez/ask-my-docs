@@ -15,7 +15,19 @@ SYSTEM_PROMPT = os.getenv(
 TEMPERATURE = float(os.getenv("CHATBOT_TEMPERATURE", "0.7"))
 MAX_TURNS = int(os.getenv("CHATBOT_MAX_TURNS", "10"))  # last N user/assistant exchanges kept
 THINK = os.getenv("CHATBOT_THINK", "false").lower() in {"1", "true", "yes"}
+
 EMBED_MODEL = os.getenv("CHATBOT_EMBED_MODEL", "nomic-embed-text")  # used by RAG to embed text
+# RAG chunking, both in characters (the overlap is ~10% of the chunk size)
+CHUNK_SIZE = int(os.getenv("CHATBOT_CHUNK_SIZE", "1200"))
+CHUNK_OVERLAP = int(os.getenv("CHATBOT_CHUNK_OVERLAP", "120"))
+
+# Weaviate vector store
+WEAVIATE_HOST = os.getenv("CHATBOT_WEAVIATE_HOST", "localhost")
+WEAVIATE_PORT = int(os.getenv("CHATBOT_WEAVIATE_PORT", "8080"))
+WEAVIATE_GRPC_PORT = int(os.getenv("CHATBOT_WEAVIATE_GRPC_PORT", "50051"))
+
+# Where source documents are copied to when ingested
+DOCUMENTS_DIR = Path(os.getenv("CHATBOT_DOCUMENTS_DIR", Path(__file__).parent / "documents"))
 # Where saved chats live (one JSON file each); defaults to ./conversations next to this file
 CONVERSATIONS_DIR = Path(
     os.getenv("CHATBOT_CONVERSATIONS_DIR", Path(__file__).parent / "conversations")
