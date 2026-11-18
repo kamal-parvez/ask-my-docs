@@ -1,8 +1,10 @@
 """Prompting: turn a question and its retrieved chunks into the message sent to the model"""
 
+NOT_FOUND = "I couldn't find that in the documents."  # the reply the model is told to give
+
 INSTRUCTIONS = (
     "Use only facts stated in the context below to answer the question; do not guess. "
-    "If the context does not clearly answer it, reply exactly: \"I couldn't find that in the documents.\" "
+    f"If the context does not clearly answer it, reply exactly: \"{NOT_FOUND}\" "
     "Keep the answer short. Do not mention the context or cite sources."
 )
 
@@ -24,3 +26,10 @@ def build_prompt(question, hits):
         return question
     context = "\n\n".join(f"[{_label(h.chunk)}]\n{h.chunk.text}" for h in hits)
     return f"{INSTRUCTIONS}\n\nContext:\n{context}\n\nQuestion: {question}"
+
+
+def visible_sources(message):
+    """Sources to show under a saved assistant message: none if the model said it found nothing."""
+    if message.get("content", "").strip().startswith(NOT_FOUND):
+        return []
+    return message.get("sources", [])

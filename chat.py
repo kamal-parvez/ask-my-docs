@@ -54,7 +54,9 @@ class Chat:
 
     def _window(self):
         """Messages sent to the model: system prompt + last MAX_TURNS exchanges + new user message"""
-        system, rest = self.history[:1], self.history[1:]
+        # Only role and content go to the model (history messages may carry extra keys, e.g. sources)
+        messages = [{"role": m["role"], "content": m["content"]} for m in self.history]
+        system, rest = messages[:1], messages[1:]
         limit = config.MAX_TURNS * 2 + 1  # N full exchanges + the message just added
         while len(rest) > limit:
             rest = rest[2:]  # drop whole user/assistant pairs
@@ -113,4 +115,7 @@ class Chat:
         except BaseException:  # ResponseError, KeyboardInterrupt, generator close
             self.history.pop() # Remove last user msg if response failed to be consistent
             raise
-        self.history.append({"role": "assistant", "content": reply})
+        message = {"role": "assistant", "content": reply}
+        if self.last_sources:
+            message["sources"] = self.last_sources  # saved with the chat, so captions survive reloads
+        self.history.append(message)

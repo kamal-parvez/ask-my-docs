@@ -1,5 +1,8 @@
+from pathlib import Path
+
 import ollama
 
+import rag
 import storage
 from chat import Chat, ModelNotFound, OllamaUnavailable
 
@@ -9,6 +12,9 @@ HELP = """Commands:
   /load <n>      continue saved chat number n from /chats
   /model         list installed models
   /model <name>  switch to another Ollama model
+  /ingest <path> add a document (.pdf, .txt, .md) to the knowledge base
+  /docs          list ingested documents
+  /rmdoc <name>  remove an ingested document (see /docs for names)
   /help          show this help
   /exit          quit (also: exit, quit, Ctrl+C)
 """
@@ -45,6 +51,59 @@ def handle_model_command(chat, name):
         print(NOT_RUNNING)
 
 
+def print_sources(message):
+    sources = rag.visible_sources(message)
+    if sources:
+        print(f"Sources: {' · '.join(sources)}\n")
+
+
+def handle_ingest_command(arg):
+    path = Path(arg.strip().strip("\"'")).expanduser()
+    if not arg:
+        print("Usage: /ingest <path to a .pdf, .txt or .md file>\n")
+        return
+    print(f"Ingesting {path.name}...")
+    try:
+        n = rag.ingest(path)
+    except rag.RAG_ERRORS as e:
+        print(f"{rag.error_message(e)}\n")
+        return
+    print(f"Added {path.name} ({n} chunks).\n")
+
+
+def handle_docs_command():
+    try:
+        docs = rag.list_documents()
+    except rag.RAG_ERRORS as e:
+        print(f"{rag.error_message(e)}\n")
+        return
+    if not docs:
+        print("No documents yet. Use /ingest <path>.\n")
+        return
+    print("Documents:")
+    for name, chunks in sorted(docs.items()):
+        print(f"  {name}  ({chunks} chunks)")
+    print()
+
+
+def handle_rmdoc_command(name):
+    if not name:
+        print("Usage: /rmdoc <name>  (see /docs for names)\n")
+        return
+    try:
+        if name not in rag.list_documents():
+            print(f"No document named '{name}'. See /docs.\n")
+            return
+        if input(f"Delete '{name}' permanently? [y/N] ").strip().lower() != "y":
+            print("Cancelled.\n")
+            return
+        rag.delete_document(name)
+    except rag.RAG_ERRORS as e:
+        print(f"{rag.error_message(e)}\n")
+        return
+    print(f"Removed {name}.\n")
+
+
 def print_chats():
     chats = storage.list_chats()
     if not chats:
@@ -70,6 +129,7 @@ def handle_load_command(chat, arg):
     print(f"Loaded: {chats[int(arg) - 1].title}\n")
     for m in chat.history[1:]:
         print(f"{'You' if m['role'] == 'user' else 'Bot'}: {m['content']}\n")
+        print_sources(m)
 
 
 def reply(chat, user_input):
@@ -87,6 +147,9 @@ def reply(chat, user_input):
         print("\n[interrupted]\n")
         return
     print("\n")
+    if chat.rag_warning:
+        print(f"({chat.rag_warning})\n")
+    print_sources(chat.history[-1])
     try:
         storage.save(chat)  # auto-save after every completed reply
     except OSError as e:
@@ -94,7 +157,7 @@ def reply(chat, user_input):
 
 
 def main():
-    chat = Chat()
+    chat = Chat(retriever=rag.retrieve_with_prompt)
     print(f"Chatting with {chat.model}. Type /help for commands.\n")
 
     while True:
@@ -118,6 +181,12 @@ def main():
             print_chats()
         elif user_input.startswith("/load"):
             handle_load_command(chat, user_input[len("/load"):].strip())
+        elif user_input.startswith("/ingest"):
+            handle_ingest_command(user_input[len("/ingest"):].strip())
+        elif user_input == "/docs":
+            handle_docs_command()
+        elif user_input.startswith("/rmdoc"):
+            handle_rmdoc_command(user_input[len("/rmdoc"):].strip())
         elif user_input.startswith("/model"):
             handle_model_command(chat, user_input[len("/model"):].strip())
         elif user_input.startswith("/"):

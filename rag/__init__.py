@@ -13,10 +13,11 @@ from pathlib import Path
 import numpy as np
 
 import config
+from chat import OllamaUnavailable
 from .chunking import Chunk, chunk_file, split_text
 from .documents import SUPPORTED_TYPES, DocumentError
 from .embeddings import EmbeddingModelMissing, embed_documents, embed_query
-from .prompting import build_prompt
+from .prompting import NOT_FOUND, build_prompt, visible_sources
 from .retrieval import Retrieval, retrieve, retrieve_with_prompt
 from .store import Hit, VectorStoreUnavailable, delete_chunks, list_documents, replace_document
 
@@ -50,3 +51,18 @@ def delete_document(name):
     """Remove a document's chunks from the store, and its copy in documents/."""
     delete_chunks(name)
     (config.DOCUMENTS_DIR / name).unlink(missing_ok=True)
+
+
+# Everything ingest / list / delete can raise, for callers that show a message instead of crashing
+RAG_ERRORS = (DocumentError, VectorStoreUnavailable, EmbeddingModelMissing, OllamaUnavailable)
+
+
+def error_message(e):
+    """A short, user-facing message for one of RAG_ERRORS."""
+    if isinstance(e, VectorStoreUnavailable):
+        return "Document store (Weaviate) isn't running. Start it with `docker compose up -d`."
+    if isinstance(e, EmbeddingModelMissing):
+        return f"Embedding model {e} isn't installed. Run `ollama pull {e}`."
+    if isinstance(e, OllamaUnavailable):
+        return "Can't reach Ollama. Is it running? (try `ollama serve`)"
+    return str(e)

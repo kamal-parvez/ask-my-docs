@@ -24,12 +24,18 @@ class Retrieval:
     warning: str | None = None  # set when documents couldn't be searched
 
 
-def _source_label(chunk):
-    if chunk.page is None:
-        return chunk.source
-    if chunk.page_end in (None, chunk.page):
-        return f"{chunk.source}, p.{chunk.page}"
-    return f"{chunk.source}, p.{chunk.page}-{chunk.page_end}"
+def _sources(hits):
+    """One entry per file, with its pages in order: ["handbook.pdf, p.5-6, 13, 28-29", "notes.txt"]"""
+    pages = {}  # file -> [(first page, label)]
+    for h in hits:
+        c = h.chunk
+        found = pages.setdefault(c.source, [])
+        if c.page is not None:
+            found.append((c.page, str(c.page) if c.page_end in (None, c.page) else f"{c.page}-{c.page_end}"))
+    return [
+        f"{name}, p." + ", ".join(label for _, label in dict.fromkeys(sorted(found))) if found else name
+        for name, found in pages.items()
+    ]
 
 
 def retrieve_with_prompt(question):
@@ -40,5 +46,4 @@ def retrieve_with_prompt(question):
         return Retrieval(question, warning="Document store (Weaviate) isn't running; answering without documents.")
     except EmbeddingModelMissing as e:
         return Retrieval(question, warning=f"Embedding model {e} isn't installed; answering without documents.")
-    sources = list(dict.fromkeys(_source_label(h.chunk) for h in hits))
-    return Retrieval(build_prompt(question, hits), sources)
+    return Retrieval(build_prompt(question, hits), _sources(hits))
