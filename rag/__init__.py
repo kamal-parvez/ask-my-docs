@@ -5,6 +5,7 @@ chunking.py   - split text into overlapping chunks
 embeddings.py - text to vectors (Ollama)
 store.py      - Weaviate storage and vector search
 retrieval.py  - find the chunks relevant to a question
+prompting.py  - put the chunks into the message sent to the model
 """
 import shutil
 from pathlib import Path
@@ -15,6 +16,7 @@ import config
 from .chunking import Chunk, chunk_file, split_text
 from .documents import SUPPORTED_TYPES, DocumentError
 from .embeddings import EmbeddingModelMissing, embed_documents, embed_query
+from .prompting import build_prompt
 from .retrieval import retrieve
 from .store import Hit, VectorStoreUnavailable, delete_chunks, list_documents, replace_document
 
