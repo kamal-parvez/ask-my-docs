@@ -164,8 +164,8 @@ for msg in chat.history[1:]:
         show_sources(msg)
 
 # Chat box with a small model picker underneath
+prompt = st.chat_input("Message the bot...")
 with st.bottom:
-    prompt = st.chat_input("Message the bot...")
     try:
         names = [m.name for m in chat.list_models()]
     except OllamaUnavailable:
