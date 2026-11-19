@@ -33,15 +33,15 @@ class Retrieval:
 
 
 def _sources(hits):
-    """One entry per file, with its pages in order: ["handbook.pdf, p.5-6, 13, 28-29", "notes.txt"]"""
-    pages = {}  # file -> [(first page, label)]
+    """One entry per file, with its pages from best to worst match: ["handbook.pdf, p.28-29, 5-6, 13", "notes.txt"]"""
+    pages = {}  # file -> [page label]
     for h in hits:
         c = h.chunk
         found = pages.setdefault(c.source, [])
         if c.page is not None:
-            found.append((c.page, str(c.page) if c.page_end in (None, c.page) else f"{c.page}-{c.page_end}"))
+            found.append(str(c.page) if c.page_end in (None, c.page) else f"{c.page}-{c.page_end}")
     return [
-        f"{name}, p." + ", ".join(label for _, label in dict.fromkeys(sorted(found))) if found else name
+        f"{name}, p." + ", ".join(dict.fromkeys(found)) if found else name
         for name, found in pages.items()
     ]
 
