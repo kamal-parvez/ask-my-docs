@@ -34,6 +34,11 @@ WEAVIATE_GRPC_PORT = int(os.getenv("CHATBOT_WEAVIATE_GRPC_PORT", "50051"))
 
 # Where source documents are copied to when ingested
 DOCUMENTS_DIR = Path(os.getenv("CHATBOT_DOCUMENTS_DIR", Path(__file__).parent / "documents"))
+
+# Logging
+LOG_LEVEL = os.getenv("CHATBOT_LOG_LEVEL", "INFO")
+LOG_DIR = Path(os.getenv("CHATBOT_LOG_DIR", Path(__file__).parent / "logs"))
+
 # Where saved chats live (one JSON file each); defaults to ./conversations next to this file
 CONVERSATIONS_DIR = Path(
     os.getenv("CHATBOT_CONVERSATIONS_DIR", Path(__file__).parent / "conversations")

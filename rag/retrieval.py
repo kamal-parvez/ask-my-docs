@@ -1,11 +1,14 @@
 """Retrieval: find the chunks relevant to a question"""
 from dataclasses import dataclass, field
 
+import logging
+
 import config
 from .embeddings import EmbeddingModelMissing, embed_query
 from .prompting import build_prompt
 from .store import VectorStoreUnavailable, search
 
+log = logging.getLogger("chatbot.rag")
 
 def retrieve(query, k=None, min_score=None):
     """Chunks most similar to the query, best first, keeping only those scoring at least `min_score`.
@@ -13,7 +16,12 @@ def retrieve(query, k=None, min_score=None):
     """
     k = config.RAG_TOP_K if k is None else k
     min_score = config.RAG_MIN_SCORE if min_score is None else min_score
-    return [hit for hit in search(embed_query(query), k) if hit.score >= min_score]
+    found = search(embed_query(query), k)
+    for h in found:
+        status = "kept" if h.score >= min_score else "dropped"
+        where = h.chunk.source if h.chunk.page is None else f"{h.chunk.source} p.{h.chunk.page}"
+        log.debug(f"Chunk {status} | score {h.score:.2f} | {where}\n{h.chunk.text}\n")
+    return [hit for hit in found if hit.score >= min_score]
 
 
 @dataclass
@@ -43,7 +51,12 @@ def retrieve_with_prompt(question):
     try:
         hits = retrieve(question)
     except VectorStoreUnavailable:
+        log.warning("Weaviate isn't running; answering without documents")
         return Retrieval(question, warning="Document store (Weaviate) isn't running; answering without documents.")
     except EmbeddingModelMissing as e:
+        log.warning("Embedding model %s isn't installed; answering without documents", e)
         return Retrieval(question, warning=f"Embedding model {e} isn't installed; answering without documents.")
-    return Retrieval(build_prompt(question, hits), _sources(hits))
+    sources = _sources(hits)
+    best_score = f"{hits[0].score:.2f}" if hits else "none"
+    log.info(f"Question: {question} | chunks used: {len(hits)} | best score: {best_score} | sources: {sources}")
+    return Retrieval(build_prompt(question, hits), sources)

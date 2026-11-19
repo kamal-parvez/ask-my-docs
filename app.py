@@ -8,7 +8,9 @@ import streamlit as st
 import rag
 import storage
 from chat import Chat, ModelNotFound, OllamaUnavailable
+from logging_setup import setup_logging
 
+setup_logging()
 st.set_page_config(page_title="AI Chatbot", page_icon="💬", layout="wide")
 st.title("💬 AI Chatbot")
 

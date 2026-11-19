@@ -5,6 +5,7 @@ import ollama
 import rag
 import storage
 from chat import Chat, ModelNotFound, OllamaUnavailable
+from logging_setup import setup_logging
 
 HELP = """Commands:
   /reset         start a new chat (the current one stays saved)
@@ -157,7 +158,8 @@ def reply(chat, user_input):
 
 
 def main():
-    chat = Chat(retriever=rag.retrieve_with_prompt)
+    setup_logging()
+    chat =Chat(retriever=rag.retrieve_with_prompt)
     print(f"Chatting with {chat.model}. Type /help for commands.\n")
 
     while True:

@@ -2,6 +2,7 @@ plan.md
 conversations/
 documents/
 knowledge/
+logs/
 
 # Python
 .venv/
