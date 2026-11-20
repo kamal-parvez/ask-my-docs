@@ -1,13 +1,15 @@
-"""The Weaviate vector store: connect, replace/list/delete documents' chunks, vector search"""
+"""The Weaviate vector store: connect, replace/list/delete documents' chunks, hybrid search"""
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import cast
 
+import numpy as np
 import weaviate
 from weaviate.classes.aggregate import GroupByAggregate
 from weaviate.classes.config import Configure, DataType, Property, Tokenization, VectorDistances
 from weaviate.classes.data import DataObject
-from weaviate.classes.query import Filter, MetadataQuery
+from weaviate.classes.query import Filter, HybridFusion, MetadataQuery
+from weaviate.collections.classes.internal import MetadataReturn
 from weaviate.exceptions import WeaviateConnectionError
 
 import config
@@ -21,6 +23,8 @@ class Hit:
     """A search result: a chunk and its cosine similarity to the query (higher is closer)."""
     chunk: Chunk
     score: float
+    semantic: bool = False  # True if the vector part of the hybrid search found this chunk
+    keyword: bool = False  # True if the keyword (BM25) part of the hybrid search found this chunk
 
 
 class VectorStoreUnavailable(Exception):
@@ -82,11 +86,18 @@ def delete_chunks(name):
         collection.data.delete_many(where=Filter.by_property("source").equal(name))
 
 
-def search(vector, k):
-    """The k chunks closest to a query vector, best first (no relevance cutoff here)."""
+def search(text, vector, k, alpha):
+    """The k best chunks by hybrid search (semantic + keyword)"""
     with _store() as collection:
-        response = collection.query.near_vector(
-            near_vector=vector.tolist(), limit=k, return_metadata=MetadataQuery(distance=True)
+        response = collection.query.hybrid(
+            query=text,
+            vector=vector.tolist(),
+            alpha=alpha,
+            fusion_type=HybridFusion.RANKED,  # fuse by rank; relative-score fusion ranked the resume chunk worse
+            query_properties=["text"],
+            limit=k,
+            include_vector=True,
+            return_metadata=MetadataQuery(explain_score=True),
         )
         return [
             Hit(
@@ -96,7 +107,10 @@ def search(vector, k):
                     page=cast("int | None", o.properties["page"]),
                     page_end=cast("int | None", o.properties["page_end"]),
                 ),
-                1 - cast(float, o.metadata.distance),  # cosine distance
+                float(np.dot(o.vector["default"], vector)),  # both unit length, so the dot product is the cosine
+                # the explanation names each part ("vector,hybridVector", "keyword,bm25") that found this chunk
+                semantic="hybridVector" in (cast(MetadataReturn, o.metadata).explain_score or ""),
+                keyword="bm25" in (cast(MetadataReturn, o.metadata).explain_score or ""),
             )
             for o in response.objects
         ]

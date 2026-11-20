@@ -11,17 +11,21 @@ from .store import VectorStoreUnavailable, search
 log = logging.getLogger("chatbot.rag")
 
 def retrieve(query, k=None, min_score=None):
-    """Chunks most similar to the query, best first, keeping only those scoring at least `min_score`.
-    Returns a list of Hit (chunk + score) or empty if nothing is relevant (or nothing is ingested).
+    """Chunks most relevant to the query (hybrid search), best first. A chunk is kept if its cosine similarity is at
+    least `min_score`, or if the keyword search also matched it. Returns a list of Hit, or empty if nothing is relevant (or nothing is ingested).
     """
     k = config.RAG_TOP_K if k is None else k
     min_score = config.RAG_MIN_SCORE if min_score is None else min_score
-    found = search(embed_query(query), k)
+    found = search(query, embed_query(query), k, config.RAG_ALPHA)
+    kept = []
     for h in found:
-        status = "kept" if h.score >= min_score else "dropped"
+        keep = h.score >= min_score or h.keyword
+        found_by = "both" if h.semantic and h.keyword else "keyword" if h.keyword else "semantic"
         where = h.chunk.source if h.chunk.page is None else f"{h.chunk.source} p.{h.chunk.page}"
-        log.debug(f"Chunk {status} | score {h.score:.2f} | {where}\n{h.chunk.text}\n")
-    return [hit for hit in found if hit.score >= min_score]
+        log.debug(f"Chunk {'kept' if keep else 'dropped'} | score {h.score:.2f} | found by: {found_by} | {where}\n{h.chunk.text}\n")
+        if keep:
+            kept.append(h)
+    return kept
 
 
 @dataclass
