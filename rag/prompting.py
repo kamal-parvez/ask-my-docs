@@ -1,11 +1,8 @@
 """Prompting: turn a question and its retrieved chunks into the message sent to the model"""
 
-NOT_FOUND = "I couldn't find that in the documents."  # the reply the model is told to give
-
 INSTRUCTIONS = (
-    "Use only facts stated in the context below to answer the question; do not guess. "
-    f"If the context does not clearly answer it, reply exactly: \"{NOT_FOUND}\" "
-    "Keep the answer short. Do not mention the context or cite sources."
+    "Use the context below if it helps answer the question. If it is not relevant, ignore it and answer normally "
+    "from your own knowledge. Do not mention that you were given context. Keep the answer short."
 )
 
 
@@ -29,7 +26,5 @@ def build_prompt(question, hits):
 
 
 def visible_sources(message):
-    """Sources to show under a saved assistant message: none if the model said it found nothing."""
-    if message.get("content", "").strip().startswith(NOT_FOUND):
-        return []
+    """Sources to show under a saved assistant message (saved only when retrieval was confident)."""
     return message.get("sources", [])

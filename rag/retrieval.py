@@ -60,7 +60,10 @@ def retrieve_with_prompt(question):
     except EmbeddingModelMissing as e:
         log.warning("Embedding model %s isn't installed; answering without documents", e)
         return Retrieval(question, warning=f"Embedding model {e} isn't installed; answering without documents.")
-    sources = _sources(hits)
-    best_score = f"{hits[0].score:.2f}" if hits else "none"
-    log.info(f"Question: {question} | chunks used: {len(hits)} | best score: {best_score} | sources: {sources}")
+    # The chunks always go to the model as context; sources are shown only when retrieval is confident, so a
+    # casual or general question that pulled in a loosely related chunk doesn't get a misleading "Sources" line
+    confident = any(h.score >= config.RAG_MIN_SCORE for h in hits)
+    sources = _sources(hits) if confident else []
+    best_score = f"{max(h.score for h in hits):.2f}" if hits else "none"
+    log.info(f"Question: {question} | chunks used: {len(hits)} | best score: {best_score} | sources shown: {sources}")
     return Retrieval(build_prompt(question, hits), sources)

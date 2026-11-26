@@ -17,7 +17,7 @@ from chat import OllamaUnavailable
 from .chunking import Chunk, chunk_file, split_text
 from .documents import SUPPORTED_TYPES, DocumentError
 from .embeddings import EmbeddingModelMissing, embed_documents, embed_query
-from .prompting import NOT_FOUND, build_prompt, visible_sources
+from .prompting import build_prompt, visible_sources
 from .retrieval import Retrieval, retrieve, retrieve_with_prompt
 from .store import Hit, VectorStoreUnavailable, delete_chunks, list_documents, replace_document
 
