@@ -56,14 +56,29 @@ def retrieval_hit(chunk_texts, ground_truth):
 
 
 JUDGE_SYSTEM = "You are a strict grader. You compare an answer with a reference answer and reply with one word."
+JUDGE_TEMPLATE = """Grade the answer against the reference answer.
 
-JUDGE_TEMPLATE = """Question: {question}
-Reference answer: {ground_truth}
-Answer to grade: {answer}
+Rules:
+1. CORRECT if the answer states the same key fact as the reference. Different wording, extra detail, or a more \
+specific or more general name for the same thing are fine.
+2. If the answer gives the reference fact together with other correct items, it is CORRECT.
+3. Yes/no references: work out what fact the reference means for this question, then check the answer states the \
+same fact. Judge the facts in the answer, not only its first word. For a question like "Did X not do Y?", \
+check whether the answer agrees with the reference on whether X did Y.
+4. INCORRECT if the answer gives a different or contradictory fact, is too vague to contain the fact, or says the \
+information isn't available (unless it then states the reference fact).
 
-Is the answer to grade correct? It is CORRECT if it states the same key fact as the reference answer (different \
-wording, more detail or a short explanation are fine). It is INCORRECT if it gives a different or contradictory \
-fact, is vague, or says it doesn't know.
+Examples:
+Question: Is a mouse bigger than a cat? | Reference: no | Answer: No, a mouse is much smaller than a cat. -> CORRECT
+Question: Which planets have rings? | Reference: Saturn | Answer: Saturn, Jupiter, Uranus and Neptune all have rings. -> CORRECT
+Question: Who runs each state? | Reference: each state's governor | Answer: State governors run the states. -> CORRECT
+Question: What share of people are farmers? | Reference: two-thirds | Answer: About one-third are farmers. -> INCORRECT
+
+Now grade this one:
+Question: {question}
+Reference: {ground_truth}
+Answer: {answer}
+
 Reply with exactly one word: CORRECT or INCORRECT."""
 
 
