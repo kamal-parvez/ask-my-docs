@@ -15,8 +15,6 @@ from weaviate.exceptions import WeaviateConnectionError
 import config
 from .chunking import Chunk
 
-COLLECTION = "Chunk"
-
 
 @dataclass
 class Hit:
@@ -33,7 +31,7 @@ class VectorStoreUnavailable(Exception):
 
 @contextmanager
 def _store():
-    """Connect to Weaviate and make sure the Chunk collection exists."""
+    """Connect to Weaviate and make sure the chunk collection (config.WEAVIATE_COLLECTION) exists."""
     try:
         client = weaviate.connect_to_local(
             host=config.WEAVIATE_HOST, port=config.WEAVIATE_PORT, grpc_port=config.WEAVIATE_GRPC_PORT
@@ -41,9 +39,10 @@ def _store():
     except WeaviateConnectionError as e:
         raise VectorStoreUnavailable from e
     try:
-        if not client.collections.exists(COLLECTION):
+        name = config.WEAVIATE_COLLECTION  # read on each call, so the evaluation can switch to its own
+        if not client.collections.exists(name):
             client.collections.create(
-                COLLECTION,
+                name,
                 vector_config=Configure.Vectors.self_provided(  # we supply our own vectors
                     vector_index_config=Configure.VectorIndex.hnsw(distance_metric=VectorDistances.COSINE)
                 ),
@@ -55,7 +54,7 @@ def _store():
                     Property(name="page_end", data_type=DataType.INT),
                 ],
             )
-        yield client.collections.get(COLLECTION)
+        yield client.collections.get(name)
     finally:
         client.close()
 

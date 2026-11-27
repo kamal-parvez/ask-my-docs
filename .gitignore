@@ -3,6 +3,7 @@ conversations/
 documents/
 knowledge/
 logs/
+evals/results/
 
 # Python
 .venv/
@@ -18,3 +19,4 @@ __pycache__/
 dist/
 build/
 .DS_Store
+.vscode/

@@ -33,6 +33,11 @@ RAG_ALPHA = float(os.getenv("CHATBOT_RAG_ALPHA", "0.6"))
 WEAVIATE_HOST = os.getenv("CHATBOT_WEAVIATE_HOST", "localhost")
 WEAVIATE_PORT = int(os.getenv("CHATBOT_WEAVIATE_PORT", "8080"))
 WEAVIATE_GRPC_PORT = int(os.getenv("CHATBOT_WEAVIATE_GRPC_PORT", "50051"))
+# Collection holding the chunks; the evaluation uses its own so it never touches the real library
+WEAVIATE_COLLECTION = os.getenv("CHATBOT_WEAVIATE_COLLECTION", "Chunk")
+
+# Evaluation (evals/run_eval.py): the model that grades answers, from a different family than the answer model
+EVAL_JUDGE_MODEL = os.getenv("CHATBOT_EVAL_JUDGE_MODEL", "gemma3:12b")
 
 # Where source documents are copied to when ingested
 DOCUMENTS_DIR = Path(os.getenv("CHATBOT_DOCUMENTS_DIR", Path(__file__).parent / "documents"))

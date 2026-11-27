@@ -11,9 +11,7 @@ from .store import VectorStoreUnavailable, search
 log = logging.getLogger("chatbot.rag")
 
 def retrieve(query, k=None, min_score=None):
-    """Chunks most relevant to the query (hybrid search), best first. A chunk is kept if its cosine similarity is at
-    least `min_score`, or if the keyword search also matched it. Returns a list of Hit, or empty if nothing is relevant (or nothing is ingested).
-    """
+    """Chunks most relevant to the query (hybrid search)"""
     k = config.RAG_TOP_K if k is None else k
     min_score = config.RAG_MIN_SCORE if min_score is None else min_score
     found = search(query, embed_query(query), k, config.RAG_ALPHA)
@@ -34,6 +32,7 @@ class Retrieval:
     prompt: str  # the question, with context added when something relevant was found
     sources: list[str] = field(default_factory=list)  # e.g. ["handbook.pdf, p.5"]
     warning: str | None = None  # set when documents couldn't be searched
+    hits: list = field(default_factory=list)  # the chunks used as context
 
 
 def _sources(hits):
@@ -66,4 +65,4 @@ def retrieve_with_prompt(question):
     sources = _sources(hits) if confident else []
     best_score = f"{max(h.score for h in hits):.2f}" if hits else "none"
     log.info(f"Question: {question} | chunks used: {len(hits)} | best score: {best_score} | sources shown: {sources}")
-    return Retrieval(build_prompt(question, hits), sources)
+    return Retrieval(build_prompt(question, hits), sources, hits=hits)
