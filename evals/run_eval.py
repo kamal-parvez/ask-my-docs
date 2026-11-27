@@ -25,7 +25,7 @@ import ollama
 import config
 import rag
 from chat import Chat
-from scoring import contains, judge_messages, parse_verdict, retrieval_hit, token_f1
+from scoring import MIN_WORD_RECALL, contains, judge_messages, parse_verdict, retrieval_hit, token_f1
 
 DOCUMENTS_FILE = EVAL_DIR / "documents.txt"
 QUESTIONS_FILE = EVAL_DIR / "questions.csv"
@@ -145,7 +145,10 @@ def answer_all(questions, baseline, path):
 
 
 def read_results(path):
-    lines = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    # Split on "\n" only: splitlines() also splits on characters like \x85 and  , which json.dumps leaves
+    # unescaped inside strings (ensure_ascii=False), and some chunks of documents.txt contain them
+    text = path.read_text(encoding="utf-8")
+    lines = [json.loads(line) for line in text.split("\n") if line.strip()]
     if not lines or lines[0].get("type") != "settings":
         raise EvalError(f"{path} isn't a results file (no settings line)")
     return lines[0], [r for r in lines[1:] if r.get("type") == "result"]
@@ -206,7 +209,7 @@ def summarize(run_settings, results):
           f"{s['chunk_overlap']} | k {s['top_k']} | alpha {s['alpha']} | min score {s['min_score']} ===")
 
     hits = [r["retrieval_hit"] for r in results if r["retrieval_hit"] is not None]
-    print(f"Retrieval hit (answer text in a retrieved chunk): {pct(sum(hits), len(hits))}  "
+    print(f"Retrieval hit (>={MIN_WORD_RECALL:.0%} of answer words in a retrieved chunk): {pct(sum(hits), len(hits))}  "
           f"[{n - len(hits)} yes/no questions not checked]")
     print(f"Sources shown: {pct(sum(bool(r['rag']['sources']) for r in results), n)}")
 

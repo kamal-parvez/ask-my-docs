@@ -4,6 +4,7 @@ import string
 from collections import Counter
 
 YES_NO = {"yes", "no"}
+MIN_WORD_RECALL = 0.8
 
 
 def normalize(text):
@@ -18,16 +19,23 @@ def is_yes_no(ground_truth):
     return normalize(ground_truth) in YES_NO
 
 
+def word_recall(text, ground_truth):
+    """Share of the ground truth's words that also appear in the text"""
+    gt = Counter(normalize(ground_truth).split())
+    if not gt:
+        return 0.0
+    found = sum((gt & Counter(normalize(text).split())).values())
+    return found / sum(gt.values())
+
+
 def contains(answer, ground_truth):
-    """True if the normalized ground truth appears in the normalized answer
-    For yes/no ground truths, the answer's first word must be that yes/no
-    """
+    """True if at least MIN_WORD_RECALL of the ground truth's words appear in the answer"""
     gt, ans = normalize(ground_truth), normalize(answer)
     if not gt:
         return False
     if gt in YES_NO:
         return ans.split()[:1] == [gt]
-    return f" {gt} " in f" {ans} "  # whole words only: "4" mustn't match "40"
+    return word_recall(answer, ground_truth) >= MIN_WORD_RECALL
 
 
 def token_f1(answer, ground_truth):
@@ -41,12 +49,10 @@ def token_f1(answer, ground_truth):
 
 
 def retrieval_hit(chunk_texts, ground_truth):
-    """True if the ground truth appears in any retrieved chunk 
-    None when the check doesn't apply (yes/no answers)"""
+    """True if any retrieved chunk contains at least MIN_WORD_RECALL of the ground truth's words"""
     if is_yes_no(ground_truth) or not normalize(ground_truth):
         return None
-    gt = f" {normalize(ground_truth)} "
-    return any(gt in f" {normalize(t)} " for t in chunk_texts)
+    return any(word_recall(t, ground_truth) >= MIN_WORD_RECALL for t in chunk_texts)
 
 
 JUDGE_SYSTEM = "You are a strict grader. You compare an answer with a reference answer and reply with one word."
